@@ -7,6 +7,19 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="350" Width="525">
     <Grid>
-        
+        <Grid.RowDefinitions>
+            <RowDefinition Height="auto"/>
+            <RowDefinition />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="auto"/>
+            <ColumnDefinition />
+            <ColumnDefinition Width="auto"/>
+        </Grid.ColumnDefinitions>
+        <Label Grid.Column="0" Grid.Row="0" Content="Anki package:" />
+        <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding Path=PackagePath}" Margin="3,3,3,3" />
+        <Button Grid.Row="0" Grid.Column="2" Content="Open" Margin="3,3,3,3" />
+        <DataGrid Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" AutoGenerateColumns="False">
+        </DataGrid>
     </Grid>
 </Window>
