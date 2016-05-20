@@ -9,6 +9,7 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
@@ -18,8 +19,27 @@
         </Grid.ColumnDefinitions>
         <Label Grid.Column="0" Grid.Row="0" Content="Anki package:" />
         <TextBox Grid.Column="1" Grid.Row="0" Text="{Binding Path=PackagePath}" Margin="3,3,3,3" />
-        <Button Grid.Row="0" Grid.Column="2" Content="Open" Margin="3,3,3,3" />
-        <DataGrid Name="dgList" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" AutoGenerateColumns="False">
+        <Button Name="btnOpen" Grid.Row="0" Grid.Column="2" Content="Open" Margin="3,3,3,3" Click="btnOpen_Click" />
+        <ProgressBar Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Height="20" Margin="3,3,3,3" Minimum="0" Maximum="100" Value="{Binding Path=Progress}" />
+        <Button Name="btnPrint" Grid.Row="1" Grid.Column="2" Content="Print" Margin="3,3,3,3" Click="btnPrint_Click" />
+        <DataGrid Name="dgList" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" AutoGenerateColumns="False">
+            <DataGrid.Columns>
+                <DataGridTextColumn Header="Angol szó" Width="auto" MinWidth="160" Binding="{Binding Path=Word}"/>
+                <DataGridTextColumn Header="Magyar jelentés" Width="auto" MinWidth="160" MaxWidth="260" Binding="{Binding Path=FlatTranslate}">
+                    <DataGridTextColumn.ElementStyle>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="TextWrapping" Value="Wrap" />
+                        </Style>
+                    </DataGridTextColumn.ElementStyle>
+                </DataGridTextColumn>
+                <DataGridTemplateColumn Header="Példa" Width="*">
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <TextBlock local:FormatterBehaviour.FormattedText="{Binding Path=FlatExamples}" TextWrapping="Wrap"/>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
+            </DataGrid.Columns>
         </DataGrid>
     </Grid>
 </Window>
