@@ -3,6 +3,7 @@ using AnkiSniffer.DataSource;
 using ICSharpCode.SharpZipLib.Core;
 using ICSharpCode.SharpZipLib.Zip;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Printing;
@@ -26,6 +27,9 @@ namespace AnkiSniffer {
 	/// </summary>
 	public partial class MainWindow : Window {
 		private List<Card> _cards;
+
+		private List<List<Card>> _selectedCellsHistory;
+		private bool _isInBackSel = false;
 
 		#region PackagePath property
 		public string PackagePath
@@ -51,6 +55,30 @@ namespace AnkiSniffer {
 			DependencyProperty.Register ("Progress", typeof (double), typeof (MainWindow), new PropertyMetadata (0.0));
 		#endregion
 
+		#region WordCount property
+		public int WordCount
+		{
+			get { return (int)GetValue (WordCountProperty); }
+			set { SetValue (WordCountProperty, value); }
+		}
+
+		// Using a DependencyProperty as the backing store for WordCount.  This enables animation, styling, binding, etc...
+		public static readonly DependencyProperty WordCountProperty =
+			DependencyProperty.Register ("WordCount", typeof (int), typeof (MainWindow), new PropertyMetadata (0));
+		#endregion
+
+		#region FilteredWordCount property
+		public int FilteredWordCount
+		{
+			get { return (int)GetValue (FilteredWordCountProperty); }
+			set { SetValue (FilteredWordCountProperty, value); }
+		}
+
+		// Using a DependencyProperty as the backing store for FilteredWordCount.  This enables animation, styling, binding, etc...
+		public static readonly DependencyProperty FilteredWordCountProperty =
+			DependencyProperty.Register ("FilteredWordCount", typeof (int), typeof (MainWindow), new PropertyMetadata (0)); 
+		#endregion
+
 		public MainWindow () {
 			InitializeComponent ();
 
@@ -64,6 +92,9 @@ namespace AnkiSniffer {
 			this.btnOpen.IsEnabled = false;
 			this.btnPrint.IsEnabled = false;
 			this.dgList.IsEnabled = false;
+
+			_selectedCellsHistory = new List<List<Card>> ();
+			this.btnBackSel.IsEnabled = false;
 
 			_cards = null;
 			this.dgList.ItemsSource = null;
@@ -82,8 +113,18 @@ namespace AnkiSniffer {
 					this.btnPrint.IsEnabled = true;
 					this.dgList.IsEnabled = true;
 					this.dgList.ItemsSource = _cards;
+
+					WordCount = _cards.Count;
+					FilteredWordCount = _cards.Count;
 				});
 			});
+		}
+
+		private int GetRowIndexFromCellInfo (DataGridCellInfo dataGridCellInfo) {
+			DataGridRow dgrow = (DataGridRow)this.dgList.ItemContainerGenerator.ContainerFromItem (dataGridCellInfo.Item);
+			if (dgrow != null)
+				return dgrow.GetIndex ();
+			return -1;
 		}
 
 		private void btnOpen_Click (object sender, RoutedEventArgs e) {
@@ -185,6 +226,72 @@ namespace AnkiSniffer {
 				// Send content to the printer.
 				docWriter.Write (paginator);
 			}
+		}
+
+		private void tbEnglishSearch_TextChanged (object sender, TextChangedEventArgs e) {
+			string currentFilter = this.tbEnglishSearch.Text;
+			if (string.IsNullOrEmpty (currentFilter)) {
+				this.dgList.ItemsSource = _cards;
+				FilteredWordCount = _cards.Count;
+			} else {
+				List<Card> filteredCards = (from item in _cards
+											where item.Word.ToLower ().Contains (currentFilter.ToLower ())
+											select item).ToList ();
+				this.dgList.ItemsSource = filteredCards;
+				FilteredWordCount = filteredCards.Count;
+			}
+		}
+
+		private void tbHungarySearch_TextChanged (object sender, TextChangedEventArgs e) {
+			string currentFilter = this.tbHungarySearch.Text;
+			if (string.IsNullOrEmpty (currentFilter)) {
+				this.dgList.ItemsSource = _cards;
+				FilteredWordCount = _cards.Count;
+			} else {
+				List<Card> filteredCards = (from item in _cards
+											where string.Join ("", item.Translate).ToLower ().Contains (currentFilter.ToLower ())
+											select item).ToList ();
+				this.dgList.ItemsSource = filteredCards;
+				FilteredWordCount = filteredCards.Count;
+			}
+		}
+
+		private void btnBackSel_Click (object sender, RoutedEventArgs e) {
+			_isInBackSel = true;
+
+			if (_selectedCellsHistory.Count > 0) {
+				this.tbEnglishSearch.Text = string.Empty;
+				this.tbHungarySearch.Text = string.Empty;
+
+				this.dgList.ItemsSource = _cards;
+				FilteredWordCount = _cards.Count;
+
+				List<Card> selItems = _selectedCellsHistory[_selectedCellsHistory.Count - 1];
+				_selectedCellsHistory.RemoveAt (_selectedCellsHistory.Count - 1);
+
+				this.dgList.SelectedItems.Clear ();
+				foreach (Card card in selItems)
+					this.dgList.SelectedItems.Add (card);
+			}
+
+			this.btnBackSel.IsEnabled = _selectedCellsHistory.Count > 0;
+
+			_isInBackSel = false;
+		}
+
+		private void dgList_SelectionChanged (object sender, SelectionChangedEventArgs e) {
+			if (_isInBackSel)
+				return;
+
+			var selItems = this.dgList.SelectedItems;
+			if (selItems != null && selItems.Count > 0) {
+				List<Card> selCards = new List<Card> ();
+				foreach (Card card in selItems)
+					selCards.Add (card);
+				_selectedCellsHistory.Add (selCards);
+			}
+
+			this.btnBackSel.IsEnabled = _selectedCellsHistory.Count > 0;
 		}
 	}
 }

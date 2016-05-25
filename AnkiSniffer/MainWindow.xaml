@@ -10,7 +10,9 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="auto"/>
             <RowDefinition Height="auto"/>
+            <RowDefinition Height="auto"/>
             <RowDefinition />
+            <RowDefinition Height="auto"/>
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="auto"/>
@@ -22,7 +24,14 @@
         <Button Name="btnOpen" Grid.Row="0" Grid.Column="2" Content="Open" Margin="3,3,3,3" Click="btnOpen_Click" />
         <ProgressBar Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Height="20" Margin="3,3,3,3" Minimum="0" Maximum="100" Value="{Binding Path=Progress}" />
         <Button Name="btnPrint" Grid.Row="1" Grid.Column="2" Content="Print" Margin="3,3,3,3" Click="btnPrint_Click" />
-        <DataGrid Name="dgList" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" AutoGenerateColumns="False">
+        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
+            <Label Content="Angol szó:" />
+            <TextBox Name="tbEnglishSearch" Margin="3,3,3,3" MinWidth="120" TextChanged="tbEnglishSearch_TextChanged"/>
+            <Label Content="Magyar szó:" />
+            <TextBox Name="tbHungarySearch" Margin="3,3,3,3" MinWidth="120" TextChanged="tbHungarySearch_TextChanged"/>
+            <Button Name="btnBackSel" Content="Szelekció vissza" Padding="2,2,2,2" Margin="3,3,3,3" Click="btnBackSel_Click"/>
+        </StackPanel>
+        <DataGrid Name="dgList" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" AutoGenerateColumns="False" SelectionChanged="dgList_SelectionChanged">
             <DataGrid.Columns>
                 <DataGridTextColumn Header="Angol szó" Width="auto" MinWidth="160" Binding="{Binding Path=Word}"/>
                 <DataGridTextColumn Header="Magyar jelentés" Width="auto" MinWidth="160" MaxWidth="260" Binding="{Binding Path=FlatTranslate}">
@@ -41,5 +50,11 @@
                 </DataGridTemplateColumn>
             </DataGrid.Columns>
         </DataGrid>
+        <StackPanel Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
+            <Label Content="Szavak száma:" />
+            <TextBox Margin="3,3,3,3" MinWidth="30" TextAlignment="Center" VerticalAlignment="Center" Text="{Binding Path=WordCount}"/>
+            <Label Content="Szűrt szavak száma:" />
+            <TextBox Margin="3,3,3,3" MinWidth="30" TextAlignment="Center" VerticalAlignment="Center" Text="{Binding Path=FilteredWordCount}"/>
+        </StackPanel>
     </Grid>
 </Window>
