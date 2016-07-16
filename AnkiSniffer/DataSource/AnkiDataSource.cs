@@ -1,10 +1,12 @@
 ﻿using AnkiSniffer.BLL;
 using ICSharpCode.SharpZipLib.Zip;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Data.SQLite;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -31,6 +33,81 @@ namespace AnkiSniffer.DataSource {
 				conn.Open ();
 				return QueryCards (conn);
 			}
+		}
+
+		public static List<Card> TurnLanguages (List<Card> input) {
+			Dictionary<string, Card> result = new Dictionary<string, Card> ();
+
+			foreach (Card card in input) {
+				foreach (string word in card.Translate) {
+					if (string.IsNullOrWhiteSpace (word))
+						continue;
+
+					if (result.ContainsKey (word)) {
+						Card turnedCard = result[word];
+						turnedCard.Translate.Add (card.Word);
+						turnedCard.Examples.AddRange (from item in card.Examples
+										where item.ToLower ().Contains (card.Word.ToLower ())
+										select item);
+					} else {
+						List<string> translate = new List<string> ();
+						translate.Add (card.Word);
+
+						var examples = (from item in card.Examples
+										where item.ToLower ().Contains (card.Word.ToLower ())
+										select item).ToList ();
+
+						result.Add (word, new Card () {
+							Content = card.Content,
+							Tags = card.Tags,
+							Word = word,
+							Translate = translate,
+							Examples = examples
+						});
+					}
+				}
+			}
+
+			return result.Values.ToList ();
+		}
+
+		public static List<Card> FilterSztaki (List<Card> input, string fromLang, string toLang) {
+			//Original full page url: http://szotar.sztaki.hu/angol-magyar-szotar/search?fromlang=eng&tolang=hun&searchWord=hajr%C3%A1&langcode=hu&u=0&langprefix=&searchMode=CONTENT_EXACT&viewMode=full&ignoreAccents=0&dict%5B%5D=eng-hun-sztaki-dict
+			//Original ajax url: http://szotar.sztaki.hu/ajax/ac.php?url=%3FsearchWord%3Dhajr%25C3%25A1%26lang%3Deng%26toLang%3Dhun%26dict%3Deng-hun-sztaki-dict%26outLanguage%3Dhun%26labelHandling%3DINLINE_WITH_PROPERTY%26searchMode%3Dword_prefix%26resultFormat%3Dautocomplete_merged%26pageSize%3D50
+
+			List<Card> result = new List<Card> ();
+			foreach (Card card in input) {
+				//Check translation on sztaki
+				string url = @"http://szotar.sztaki.hu/ajax/ac.php?url=";
+				url += WebUtility.UrlEncode (string.Format (@"?searchWord={0}&lang={1}&toLang={2}&dict=eng-hun-sztaki-dict&outLanguage={2}&labelHandling=INLINE_WITH_PROPERTY&searchMode=word_prefix&resultFormat=autocomplete_merged&pageSize=3",
+					WebUtility.UrlEncode (card.Word), fromLang, toLang));
+
+				HttpWebRequest req = WebRequest.CreateHttp (url);
+				HttpWebResponse resp = (HttpWebResponse) req.GetResponse ();
+				if (resp.StatusCode == HttpStatusCode.OK) {
+					using (Stream stream = resp.GetResponseStream ())
+					using (StreamReader sr = new StreamReader (stream)) {
+						string body = sr.ReadToEnd ();
+						dynamic json = JsonConvert.DeserializeObject (body);
+						foreach (dynamic item in json.contents.result) {
+							string itemContent = item.content.ToString ();
+							string itemLang = item.translationLang.ToString ();
+							if (itemLang == toLang && itemContent.ToLower () == card.Word.ToLower ()) { //Add word to result if valid
+								List<string> translate = new List<string> ();
+								translate.Add (item.translationExcerpt.ToString ());
+
+								result.Add (new Card () {
+									Word = card.Word,
+									Translate = translate
+								});
+								break;
+							}
+						}
+					}
+				}
+			}
+
+			return result;
 		}
 
 		#region Implementation
@@ -76,9 +153,7 @@ namespace AnkiSniffer.DataSource {
 				});
 			}
 
-			return (from item in cards
-					orderby item.Word
-					select item).ToList ();
+			return cards;
 		}
 
 		private static string RemoveAllHTMLTags (string field) {

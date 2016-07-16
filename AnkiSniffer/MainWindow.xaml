@@ -25,11 +25,13 @@
         <ProgressBar Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2" Height="20" Margin="3,3,3,3" Minimum="0" Maximum="100" Value="{Binding Path=Progress}" />
         <Button Name="btnPrint" Grid.Row="1" Grid.Column="2" Content="Print" Margin="3,3,3,3" Click="btnPrint_Click" />
         <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Horizontal">
-            <Label Content="Angol szó:" />
+            <Label Name="lbEnglishSearch" Content="Angol szó:" />
             <TextBox Name="tbEnglishSearch" Margin="3,3,3,3" MinWidth="120" TextChanged="tbEnglishSearch_TextChanged"/>
-            <Label Content="Magyar szó:" />
+            <Label Name="lbHungarySearch"  Content="Magyar szó:" />
             <TextBox Name="tbHungarySearch" Margin="3,3,3,3" MinWidth="120" TextChanged="tbHungarySearch_TextChanged"/>
             <Button Name="btnBackSel" Content="Szelekció vissza" Padding="2,2,2,2" Margin="3,3,3,3" Click="btnBackSel_Click"/>
+            <Button Name="btnTurnLangs" Content="Nyelvek megfordítása" Padding="2,2,2,2" Margin="3,3,3,3" Click="btnTurnLangs_Click"/>
+            <Button Name="btnCheckSztaki" Content="Sztaki ellenőrzés" Padding="2,2,2,2" Margin="3,3,3,3" Click="btnCheckSztaki_Click"/>
         </StackPanel>
         <DataGrid Name="dgList" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="3" AutoGenerateColumns="False" SelectionChanged="dgList_SelectionChanged">
             <DataGrid.Columns>

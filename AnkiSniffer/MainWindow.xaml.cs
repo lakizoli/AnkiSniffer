@@ -31,6 +31,15 @@ namespace AnkiSniffer {
 		private List<List<Card>> _selectedCellsHistory;
 		private bool _isInBackSel = false;
 
+		private string _fromLang = "eng";
+		private string _toLang = "hun";
+
+		private enum ReloadModes {
+			Normal,
+			Turned,
+			FilteredBySztaki
+		}
+
 		#region PackagePath property
 		public string PackagePath
 		{
@@ -88,9 +97,16 @@ namespace AnkiSniffer {
 			PackagePath = System.IO.Path.Combine (assDir, "Erwin_Tschirner_Angol_szkincs__Best_of_English_-_en-hu.apkg");
 		}
 
-		private void Reload () {
+		private void Reload (ReloadModes mode) {
+			List<Card> conversionInput = mode != ReloadModes.Normal ? (List<Card>)this.dgList.ItemsSource : null;
+			if (mode == ReloadModes.FilteredBySztaki && _selectedCellsHistory != null && _selectedCellsHistory.Count > 0) {
+				conversionInput = _selectedCellsHistory[_selectedCellsHistory.Count - 1];
+			}
+
 			this.btnOpen.IsEnabled = false;
 			this.btnPrint.IsEnabled = false;
+			this.btnTurnLangs.IsEnabled = false;
+			this.btnCheckSztaki.IsEnabled = false;
 			this.dgList.IsEnabled = false;
 
 			_selectedCellsHistory = new List<List<Card>> ();
@@ -101,18 +117,56 @@ namespace AnkiSniffer {
 
 			string packagePath = PackagePath;
 			Task.Run (() => {
-				_cards = AnkiDataSource.LoadPackage (packagePath, new FastZipEvents () {
-					Progress = this.ZipProgressHandler,
-					ProgressInterval = TimeSpan.FromMilliseconds (100)
-				});
+				switch (mode) {
+					case ReloadModes.FilteredBySztaki:
+						_cards = AnkiDataSource.FilterSztaki (conversionInput, _fromLang, _toLang);
+						break;
+					case ReloadModes.Turned:
+						_cards = AnkiDataSource.TurnLanguages (conversionInput);
+						break;
+					default:
+					case ReloadModes.Normal:
+						_cards = AnkiDataSource.LoadPackage (packagePath, new FastZipEvents () {
+							Progress = this.ZipProgressHandler,
+							ProgressInterval = TimeSpan.FromMilliseconds (100)
+						});
+						break;
+				}
 
 				//Fill UI
 				Dispatcher.Invoke (() => {
 					Progress = 100;
 					this.btnOpen.IsEnabled = true;
 					this.btnPrint.IsEnabled = true;
+					this.btnTurnLangs.IsEnabled = mode == ReloadModes.Normal || mode == ReloadModes.FilteredBySztaki;
+					this.btnCheckSztaki.IsEnabled = mode == ReloadModes.Normal || mode == ReloadModes.Turned;
 					this.dgList.IsEnabled = true;
 					this.dgList.ItemsSource = _cards;
+
+					switch (mode) {
+						case ReloadModes.Turned:
+							this.dgList.Columns[0].Header = "Magyar szó";
+							this.dgList.Columns[1].Header = "Angol jelentés";
+
+							this.lbEnglishSearch.Content = "Magyar szó:";
+							this.lbHungarySearch.Content = "Angol szó:";
+
+							_fromLang = "hun";
+							_toLang = "eng";
+							break;
+						case ReloadModes.Normal:
+							this.dgList.Columns[0].Header = "Angol szó";
+							this.dgList.Columns[1].Header = "Magyar jelentés";
+
+							this.lbEnglishSearch.Content = "Angol szó:";
+							this.lbHungarySearch.Content = "Magyar szó:";
+
+							_fromLang = "eng";
+							_toLang = "hun";
+							break;
+						default:
+							break;
+					}
 
 					WordCount = _cards.Count;
 					FilteredWordCount = _cards.Count;
@@ -128,7 +182,7 @@ namespace AnkiSniffer {
 		}
 
 		private void btnOpen_Click (object sender, RoutedEventArgs e) {
-			Reload ();
+			Reload (ReloadModes.Normal);
 		}
 
 		private void ZipProgressHandler (object sender, ProgressEventArgs e) {
@@ -292,6 +346,14 @@ namespace AnkiSniffer {
 			}
 
 			this.btnBackSel.IsEnabled = _selectedCellsHistory.Count > 0;
+		}
+
+		private void btnTurnLangs_Click (object sender, RoutedEventArgs e) {
+			Reload (ReloadModes.Turned);
+		}
+
+		private void btnCheckSztaki_Click (object sender, RoutedEventArgs e) {
+			Reload (ReloadModes.FilteredBySztaki);
 		}
 	}
 }
