@@ -71,37 +71,58 @@ namespace AnkiSniffer.DataSource {
 			return result.Values.ToList ();
 		}
 
-		public static List<Card> FilterSztaki (List<Card> input, string fromLang, string toLang) {
+		public delegate void ProgressCallback (double percent);
+
+		public static List<Card> FilterSztaki (List<Card> input, string toLang, ProgressCallback cb) {
 			//Original full page url: http://szotar.sztaki.hu/angol-magyar-szotar/search?fromlang=eng&tolang=hun&searchWord=hajr%C3%A1&langcode=hu&u=0&langprefix=&searchMode=CONTENT_EXACT&viewMode=full&ignoreAccents=0&dict%5B%5D=eng-hun-sztaki-dict
 			//Original ajax url: http://szotar.sztaki.hu/ajax/ac.php?url=%3FsearchWord%3Dhajr%25C3%25A1%26lang%3Deng%26toLang%3Dhun%26dict%3Deng-hun-sztaki-dict%26outLanguage%3Dhun%26labelHandling%3DINLINE_WITH_PROPERTY%26searchMode%3Dword_prefix%26resultFormat%3Dautocomplete_merged%26pageSize%3D50
 
 			List<Card> result = new List<Card> ();
-			foreach (Card card in input) {
+			int lastProgress = -1;
+			for (int i = 0; i < input.Count; ++i) {
+				Card card = input[i];
+
 				//Check translation on sztaki
 				string url = @"http://szotar.sztaki.hu/ajax/ac.php?url=";
-				url += WebUtility.UrlEncode (string.Format (@"?searchWord={0}&lang={1}&toLang={2}&dict=eng-hun-sztaki-dict&outLanguage={2}&labelHandling=INLINE_WITH_PROPERTY&searchMode=word_prefix&resultFormat=autocomplete_merged&pageSize=3",
-					WebUtility.UrlEncode (card.Word), fromLang, toLang));
+				url += WebUtility.UrlEncode (string.Format (@"?searchWord={0}&lang=eng&toLang=hun&dict=eng-hun-sztaki-dict&outLanguage=hun&labelHandling=INLINE_WITH_PROPERTY&searchMode=word_prefix&pageSize=10",
+					WebUtility.UrlEncode (card.Word)));
 
 				HttpWebRequest req = WebRequest.CreateHttp (url);
-				HttpWebResponse resp = (HttpWebResponse) req.GetResponse ();
+				HttpWebResponse resp = (HttpWebResponse)req.GetResponse ();
 				if (resp.StatusCode == HttpStatusCode.OK) {
 					using (Stream stream = resp.GetResponseStream ())
 					using (StreamReader sr = new StreamReader (stream)) {
 						string body = sr.ReadToEnd ();
 						dynamic json = JsonConvert.DeserializeObject (body);
+
+						Card res = null;
+
 						foreach (dynamic item in json.contents.result) {
 							string itemContent = item.content.ToString ();
-							string itemLang = item.translationLang.ToString ();
-							if (itemLang == toLang && itemContent.ToLower () == card.Word.ToLower ()) { //Add word to result if valid
-								List<string> translate = new List<string> ();
-								translate.Add (item.translationExcerpt.ToString ());
-
-								result.Add (new Card () {
-									Word = card.Word,
-									Translate = translate
-								});
-								break;
+							if (itemContent.ToLower () == card.Word.ToLower ()) { //Add word to result if valid
+								List<string> translate = GetSztakiTranslations (item.connections, toLang);
+								if (translate.Count > 0) {
+									if (res == null) {
+										res = new Card () {
+											Word = card.Word,
+											Translate = translate,
+											Examples = card.Examples
+										};
+									} else {
+										res.Translate.AddRange (translate);
+									}
+								}
 							}
+						}
+
+						if (res != null) {
+							result.Add (res);
+						}
+
+						int progress = (int) ((double)(i+1) / (double)input.Count * 100.0 + 0.5);
+						if (progress != lastProgress) {
+							lastProgress = progress;
+							cb.Invoke (progress);
 						}
 					}
 				}
@@ -111,6 +132,22 @@ namespace AnkiSniffer.DataSource {
 		}
 
 		#region Implementation
+		private static List<string> GetSztakiTranslations (dynamic connections, string toLang) {
+			List<string> res = new List<string> ();
+			foreach (dynamic item in connections) {
+				foreach (dynamic trans in item.connected.connections) {
+					if (trans.name == "translation" &&
+						trans.connected.deleted != true &&
+						trans.connected.sourceLabel != null &&
+						trans.connected.sourceLabel.text == "SZTAKI" &&
+						trans.connected.language == toLang) {
+						res.Add (trans.connected.content.ToString ());
+					}
+				}
+			}
+			return res;
+		}
+
 		private static string ExtractPackage (string path, FastZipEvents zipEvents) {
 			string destPath = Path.Combine (Path.GetDirectoryName (path), Path.GetFileNameWithoutExtension (path) + "_extract");
 			if (!Directory.Exists (destPath))

@@ -119,7 +119,7 @@ namespace AnkiSniffer {
 			Task.Run (() => {
 				switch (mode) {
 					case ReloadModes.FilteredBySztaki:
-						_cards = AnkiDataSource.FilterSztaki (conversionInput, _fromLang, _toLang);
+						_cards = AnkiDataSource.FilterSztaki (conversionInput, _toLang, SztakiProgressHandler);
 						break;
 					case ReloadModes.Turned:
 						_cards = AnkiDataSource.TurnLanguages (conversionInput);
@@ -187,6 +187,12 @@ namespace AnkiSniffer {
 
 		private void ZipProgressHandler (object sender, ProgressEventArgs e) {
 			Progress = e.PercentComplete * 100.0;
+		}
+
+		private void SztakiProgressHandler (double percent) {
+			Dispatcher.Invoke (() => {
+				Progress = percent;
+			});
 		}
 
 		private void btnPrint_Click (object sender, RoutedEventArgs e) {
